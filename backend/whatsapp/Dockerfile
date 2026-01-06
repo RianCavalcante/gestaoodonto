@@ -1,6 +1,6 @@
 FROM node:18-bullseye-slim
 
-# Instalar dependências do sistema necessárias para o Puppeteer/Chrome
+# Instalar dependências do sistema necessárias para o Puppeteer/Chrome e compilação nativa
 RUN apt-get update && apt-get install -y \
     chromium \
     libnss3 \
@@ -17,6 +17,10 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     wait-for-it \
     git \
+    python3 \
+    make \
+    g++ \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Configurar variáveis de ambiente do Puppeteer
@@ -25,11 +29,12 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Copiar apenas os arquivos de dependência primeiro (cache layer)
-COPY package*.json ./
+# Copiar APENAS o package.json (ignorando o lockfile do Windows para evitar conflitos)
+COPY package.json ./
 
-# Instalar dependências do Node
-RUN npm install --production
+# Instalar dependências do Node (sem --production para garantir scripts de build)
+# --no-optional para evitar falhas em dependências opcionais de sistema
+RUN npm install --no-optional
 
 # Copiar o restante do código
 COPY . .
