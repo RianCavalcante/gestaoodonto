@@ -123,11 +123,6 @@ export function useLeads() {
           recentUpdatesRef.current.delete(id);
           fetchLeads(); // Revert on error
         }
-      })
-      .catch((err: unknown) => {
-        console.error("Erro crítico:", err);
-        recentUpdatesRef.current.delete(id);
-        fetchLeads(); // Revert
       });
     
     // Show success immediately (optimistic)
