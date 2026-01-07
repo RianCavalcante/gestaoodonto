@@ -177,8 +177,10 @@ async function startWhatsApp() {
             const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
             console.log('Conexão fechada. Status:', statusCode, 'Erro:', lastDisconnect.error);
             
-            // Auto-Recovery para Sessão Inválida ou 401
-            if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+            // Auto-Recovery para Sessão Inválida, 401 ou 440 (Conflict)
+            // 440 = Stream Errored (dificilmente recuperável sem limpar sessão)
+            // 500 = Restart Loop comum
+            if (statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 440 || statusCode === 500) {
                 console.log('Sessão inválida/desconectada no celular. Iniciando Auto-Recovery...');
                 
                 connectionStatus = 'disconnected';
