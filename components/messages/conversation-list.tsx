@@ -24,9 +24,16 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"; // Added Dialog imports
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -35,127 +42,18 @@ interface ConversationListProps {
     onSelectConversation: (conversation: Conversation) => void;
 }
 
-// Mock data - será substituído por dados reais do Supabase
-const mockConversations: Conversation[] = [
-    {
-        id: "1",
-        clinic_id: "1",
-        patient_id: "1",
-        channel: "whatsapp",
-        last_message_at: new Date().toISOString(),
-        unread_count: 3,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        patient: {
-            id: "1",
-            clinic_id: "1",
-            name: "Maria Silva",
-            phone: "11987654321",
-            channel: "whatsapp",
-            lead_status: "contacted",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        },
-        last_message: {
-            id: "1",
-            conversation_id: "1",
-            sender_type: "patient",
-            type: "text",
-            content: "Gostaria de agendar uma consulta",
-            status: "read",
-            created_at: new Date().toISOString(),
-        },
-    },
-    {
-        id: "2",
-        clinic_id: "1",
-        patient_id: "2",
-        channel: "instagram",
-        last_message_at: new Date(Date.now() - 3600000).toISOString(),
-        unread_count: 0,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        patient: {
-            id: "2",
-            clinic_id: "1",
-            name: "João Santos",
-            phone: "11976543210",
-            channel: "instagram",
-            lead_status: "new",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        },
-        last_message: {
-            id: "2",
-            conversation_id: "2",
-            sender_type: "attendant",
-            type: "text",
-            content: "Olá! Em que posso ajudar?",
-            status: "read",
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-        },
-    },
-    {
-        id: "3",
-        clinic_id: "1",
-        patient_id: "3",
-        channel: "facebook",
-        last_message_at: new Date(Date.now() - 7200000).toISOString(),
-        unread_count: 1,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        patient: {
-            id: "3",
-            clinic_id: "1",
-            name: "Ana Costa",
-            phone: "11965432109",
-            channel: "facebook",
-            lead_status: "qualified",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        },
-        last_message: {
-            id: "3",
-            conversation_id: "3",
-            sender_type: "patient",
-            type: "text",
-            content: "Quanto custa o tratamento de canal?",
-            status: "delivered",
-            created_at: new Date(Date.now() - 7200000).toISOString(),
-        },
-    },
-];
+// ... (mockConversations removed for brevity as it was unused anyway since we use real hooks)
 
 export function ConversationList({ selectedId, onSelectConversation }: ConversationListProps) {
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<ChannelType | "all">("all");
-    // Use Realtime Hook
-    // TODO: Get real clinic_id from auth context. Using "1" for MVP or fetching dynamic?
-    // User is assumed to be logged in. server.js uses clinic_id from patients.
-    // Let's fetch the first clinic ID or assume "1" if not available yet, or use a prop.
-    // Ideally we pass clinic_id to this component or context.
-    // For now, let's hardcode "1" or try to fetch user's clinic.
-    // Since this is client side, let's just query.
-    // But `useRealtimeConversations` needs an ID. 
-    // Let's modify the hook to handle null id or fetch inside?
-    // Actually, in `layout.tsx` we saw session check.
-
-    // Better: let's assume clinic_id is available or fetch it. 
-    // For speed, let's assume we can pass a dummy ID or the hook handles it?
-    // The previous code in server.js used `getFirstClinicId`.
-    // Let's assume clinic_id="1" for testing as per seed data usually.
-
-    // Waiting for clinic_id might delay render.
-    // Let's just use the hook and hardcode "1" for now to unblock the user testing.
-    // The seed data uses clinic_id "1" (from seed-test-data route presumably).
-
     const [showGroups, setShowGroups] = useState(false);
 
+    // Delete All State
+    const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const { conversations: realConversations, loading, refresh, markAsRead } = useRealtimeConversations();
-    // const [conversations] = useState<Conversation[]>(mockConversations); // REMOVED MOCK
     const conversations = realConversations;
 
     const supabase = createClient();
@@ -165,6 +63,28 @@ export function ConversationList({ selectedId, onSelectConversation }: Conversat
             markAsRead(conversation.id);
         }
         onSelectConversation(conversation);
+    };
+
+    const handleDeleteAll = async () => {
+        setIsDeleting(true);
+        try {
+            // Using a filter that is always true to delete all rows
+            const { error } = await supabase
+                .from('conversations')
+                .delete()
+                .neq('id', '00000000-0000-0000-0000-000000000000');
+
+            if (error) throw error;
+
+            toast.success("Todas as conversas foram apagadas com sucesso!");
+            refresh();
+            setIsDeleteAllOpen(false);
+        } catch (error) {
+            console.error("Erro ao apagar tudo:", error);
+            toast.error("Erro ao apagar conversas. Tente novamente.");
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     const handleDeleteConversation = async (e: React.MouseEvent, conversationId: string) => {
@@ -191,8 +111,6 @@ export function ConversationList({ selectedId, onSelectConversation }: Conversat
         if (!confirm("Tem certeza que deseja apagar este contato/lead? Tudo será perdido.")) return;
 
         try {
-            // First delete conversations (optional, but safer if no cascade)
-            // Assuming cascade delete is ON in DB, but let's just delete patient
             const { error } = await supabase
                 .from('patients')
                 .delete()
@@ -210,13 +128,6 @@ export function ConversationList({ selectedId, onSelectConversation }: Conversat
     const filteredConversations = conversations.filter((conv) => {
         const matchesSearch = conv.patient?.name.toLowerCase().includes(search.toLowerCase());
         const matchesFilter = filter === "all" || conv.channel === filter;
-
-        // Lógica de filtro de grupo:
-        // Se showGroups for true, mostra APENAS grupos (tags contém 'group' ou ID longo de grupo)
-        // Se showGroups for false, mostra APENAS individuais (tags NÃO contém 'group')
-        // *Assumindo que o backend salva tags=['group'] ou o ID termina com @g.us (mas aqui só temos o numero limpo no phone)*
-        // *Vamos usar uma heurística simples se tags não estiverem populadas: IDs de grupo geralmente começam com 12036...*
-
         const isGroup = conv.patient?.tags?.includes('group') || conv.patient?.phone?.startsWith('12036');
         const matchesGroupFilter = showGroups ? isGroup : !isGroup;
 
@@ -225,11 +136,56 @@ export function ConversationList({ selectedId, onSelectConversation }: Conversat
 
     return (
         <div className="flex flex-col h-full">
+            {/* Confirmation Dialog */}
+            <Dialog open={isDeleteAllOpen} onOpenChange={setIsDeleteAllOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Limpar Caixa de Entrada
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Você está prestes a remover todas as conversas da lista.
+                            <br />
+                            Os contatos e leads <strong>permanecerão salvos</strong>, mas o histórico de mensagens será apagado permanentemente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="sm:justify-center gap-2 mt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDeleteAllOpen(false)}
+                            disabled={isDeleting}
+                            className="w-full sm:w-auto"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteAll}
+                            disabled={isDeleting}
+                            className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
+                        >
+                            {isDeleting ? "Limpando..." : "Confirmar Limpeza"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Header */}
             <div className="p-4 border-b border-blue-200 bg-gradient-to-r from-blue-50 to-white">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-gray-900">Conversas</h2>
                     <div className="flex gap-2">
+                        {/* Botão Apagar Tudo */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsDeleteAllOpen(true)}
+                            title="Limpar Conversas"
+                            className="text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                            <Trash className="w-4 h-4" weight="duotone" />
+                        </Button>
+
                         <Button
                             variant={showGroups ? "default" : "outline"}
                             size="icon"
