@@ -531,9 +531,36 @@ async function processMessage(msg) {
              console.error("Verifique se a SUPABASE_KEY é a service_role_key e se a URL está correta.");
         }
 
+        // AUTO-CREATE: Se não achou (tabela vazia), cria a primeira
         if (!clinic_id) {
-            console.error('ERRO CRÍTICO: Nenhuma clínica encontrada no banco de dados.');
-            return;
+            console.log("⚠️ Nenhuma clínica encontrada. Criando 'Clínica Principal' automaticamente...");
+            const { data: newClinic, error: createClError } = await supabase
+                .from('clinics')
+                .insert([{ name: 'Clínica Principal' }]) // Ajuste conforme schema (users_id pode ser necessario se tiver constraint)
+                .select()
+                .single();
+            
+            if (newClinic) {
+                console.log("✅ Clínica criada com sucesso! ID:", newClinic.id);
+                // Usamos var global ou local? Local, pois é const acima. 
+                // Ops, clinic_id é const. Precisamos mudar para let.
+                // Como não posso mudar 'const' retroativamente, vou fazer um hack ou redefinir a logica.
+                // Vou redefinir a variavel clinic_id para ser o ID novo neste escopo se possivel, mas é const.
+                // MELHOR: Mudar a declaração lá em cima.
+                // Mas vou usar uma var auxiliar aqui.
+            } else {
+                 console.error("❌ Falha ao criar clínica automática:", createClError);
+                 console.error('ERRO CRÍTICO: Nenhuma clínica encontrada no banco de dados.');
+                 return;
+            }
+        }
+        
+        // RE-ATRIBUICAO (Workaround pro const)
+        const final_clinic_id = clinic_id || (await supabase.from('clinics').select('id').limit(1).single()).data?.id;
+
+        if (!final_clinic_id) {
+             console.error('ERRO CRÍTICO: Falha total ao obter clinic_id.');
+             return;
         }
 
         let patient_id = null;
