@@ -490,6 +490,7 @@ async function processMessage(msg) {
     let senderNumber = targetJid.replace(/\D/g, ''); 
     
     // Fallback de segurança (Store Lookup) - Só roda se o resultado final ainda parecer um LID
+    /* 
     if (senderNumber.length > 14) {
         console.log(`Ainda parece um LID (${senderNumber}). Tentando Store...`);
         try {
@@ -506,6 +507,7 @@ async function processMessage(msg) {
             console.error('Erro Store:', err);
         }
     }
+    */
 
     const isFromMe = msg.key.fromMe;
     
