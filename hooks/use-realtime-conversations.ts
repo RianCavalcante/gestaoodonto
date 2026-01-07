@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { io } from "socket.io-client";
 import type { Conversation } from "@/types";
 
 export function useRealtimeConversations() {
@@ -68,6 +69,26 @@ export function useRealtimeConversations() {
             setLoading(false);
         }
     }, [clinicId]);
+
+    // Socket.IO Listener (Instant Updates)
+    useEffect(() => {
+        const serverUrl = process.env.NEXT_PUBLIC_WHATSAPP_SERVER_URL || "http://localhost:3001";
+        // @ts-ignore
+        const socket = io(serverUrl);
+
+        socket.on("connect", () => {
+            console.log("ConversationList: Conectado ao Socket.IO");
+        });
+
+        socket.on("new_message", (message: any) => {
+            console.log("ConversationList: Nova mensagem via Socket.IO -> Atualizando lista...");
+            fetchConversations();
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [fetchConversations]);
 
     // Fetch conversations when clinicId is available
     useEffect(() => {

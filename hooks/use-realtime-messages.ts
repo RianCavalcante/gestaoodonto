@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { io } from "socket.io-client";
 import type { Message } from "@/types";
 
 export function useRealtimeMessages(conversationId: string | null) {
@@ -38,7 +39,33 @@ export function useRealtimeMessages(conversationId: string | null) {
     fetchMessages();
   }, [conversationId]);
 
-  // Subscribe to real-time changes
+  // Subscribe to real-time changes (Backup via Socket.IO for urgency)
+  useEffect(() => {
+    if (!conversationId) return;
+
+    // Conectar ao Socket.IO também (para garantir instantaneidade se o Supabase Realtime falhar)
+    const serverUrl = process.env.NEXT_PUBLIC_WHATSAPP_SERVER_URL || "http://localhost:3001";
+    // @ts-ignore
+    const socket = io(serverUrl);
+
+    socket.on("new_message", (message: any) => {
+        // Verifica se a mensagem pertence a esta conversa
+        if (message.conversation_id === conversationId) {
+            console.log("⚡ Nova mensagem via Socket.IO:", message);
+            // Deduplicar: não adicionar se já existir (pelo ID ou optimistic UUID)
+            setMessages((current) => {
+                if (current.some(m => m.id === message.id)) return current;
+                return [...current, message];
+            });
+        }
+    });
+
+    return () => {
+        socket.disconnect();
+    };
+  }, [conversationId]);
+  
+  // Subscribe to Supabase Realtime (Legacy/Redundancy)
   useEffect(() => {
     if (!conversationId) return;
 
@@ -54,14 +81,19 @@ export function useRealtimeMessages(conversationId: string | null) {
         },
         async (payload) => {
           const newMessage = payload.new as Message;
-          console.log("Nova mensagem realtime:", newMessage);
-          setMessages((current) => [...current, newMessage]);
+          console.log("Nova mensagem Supabase Realtime:", newMessage);
+          
+          setMessages((current) => {
+               // Deduplicação (Socket.IO vs Supabase Realtime)
+               if (current.some(m => m.id === newMessage.id)) return current;
+               return [...current, newMessage];
+          });
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+        supabase.removeChannel(channel);
     };
   }, [conversationId]);
 

@@ -658,6 +658,9 @@ async function processMessage(msg) {
 
         console.log(`✅ Mensagem salva (Otimista): ${savedMessage.id} - ${mediaType}`);
         
+        // Emitir evento Socket.IO para atualização em tempo real
+        io.emit('new_message', savedMessage);
+        
     } catch (err) {
         console.error('Erro ao processar mensagem Baileys:', JSON.stringify(err, null, 2));
     }
