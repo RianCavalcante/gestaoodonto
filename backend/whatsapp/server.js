@@ -778,25 +778,22 @@ async function processMessage(msg) {
         // Inserir no banco IMEDIATAMENTE antes de processar mídia pesada.
         // Isso garante que o usuário veja "Digitando..." ou o audio carregando instantaneamente.
 
-        let initialContent = messageContent;
-        let isMedia = false;
-        let mediaType = 'text';
-
-        // Detectar se é mídia para preparar o placeholder
-        if (msg.message?.imageMessage) { isMedia = true; mediaType = 'image'; }
-        else if (msg.message?.audioMessage) { isMedia = true; mediaType = 'audio'; }
-        else if (msg.message?.videoMessage) { isMedia = true; mediaType = 'video'; }
-        else if (msg.message?.documentMessage || msg.message?.documentWithCaptionMessage) { isMedia = true; mediaType = 'document'; }
+        // 3. OTIMIZAÇÃO E CORREÇÃO DE MÍDIA
+        // Usamos as variáveis calculatedas no início da função (messageType e mediaUrl)
+        // Isso garante que peguemos a URL já baixada e o tipo correto (mesmo se for mensagem efêmera)
         
-        // Se for mídia, salva um placeholder inicial
-        if (isMedia) {
+        let initialContent = messageContent;
+        
+        // Se temos uma URL de mídia, salvamos como JSON estruturado para o frontend
+        if (mediaUrl) {
              initialContent = JSON.stringify({
-                type: mediaType,
-                url: null, // Ainda não temos
+                type: messageType, // image, audio, video, document
+                url: mediaUrl,     // URL do Supabase Storage
                 text: messageContent || "[Mídia]", 
                 isMedia: true,
-                status: "uploading" // Flag para frontend saber que está baixando
+                status: "completed" // Upload já foi feito nas linhas acima (await downloadAndUploadMedia)
              });
+             console.log(`📦 Payload de Mídia gerado: ${messageType} - ${mediaUrl.substring(0, 30)}...`);
         }
 
         // Inserção Otimista
