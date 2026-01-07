@@ -189,8 +189,13 @@ async function startWhatsApp() {
                 try {
                     const sessionPath = path.resolve(__dirname, 'auth_info_baileys');
                     if (fs.existsSync(sessionPath)) {
-                        fs.rmSync(sessionPath, { recursive: true, force: true });
-                        console.log('Pasta de sessão (auth_info_baileys) apagada com sucesso.');
+                        // FIX: Em vez de apagar a pasta (que pode ser um Volume Docker travado/EBUSY),
+                        // apagamos apenas o CONTEÚDO de dentro dela.
+                        fs.readdirSync(sessionPath).forEach(file => {
+                            const curPath = path.join(sessionPath, file);
+                            fs.rmSync(curPath, { recursive: true, force: true });
+                        });
+                        console.log('Conteúdo da pasta de sessão limpo com sucesso.');
                     }
                 } catch (err) {
                     console.error('Erro ao apagar pasta de sessão:', err);
