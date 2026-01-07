@@ -50,6 +50,13 @@ Mensagens do WhatsApp possuem estruturas JSON complexas e aninhadas (ex: `epheme
 O Baileys emite eventos `upsert` tanto para mensagens recebidas (`notify`) quanto para enviadas/sincronizadas (`append`).
 *   **Ajuste:** O listener `sock.ev.on('messages.upsert')` foi configurado para aceitar **todos** os tipos, garantindo que mensagens enviadas pelo celular (fora do painel) ou pelo painel sejam capturadas e salvas no CRM.
 
+#### D. Smart JID Resolution (Mobile/LID Support)
+**Solução Crítica de 05/01/2026** - Resolve duplicidade de leads em mensagens via celular.
+Quando um usuário envia mensagem pelo Mobile (Protocolo Multi-Device), o WhatsApp pode enviar o número real em campos alternativos (`remoteJidAlt` ou `participantAlt`) e colocar um ID técnico (`@lid`) no campo principal.
+*   **Lógica Antiga:** Dependia apenas de `remoteJid` ou `participant`. Resultava em leads duplicados (`2014...`).
+*   **Lógica Nova (Smart Resolution):** O sistema varre todos os campos de identidade disponíveis (`remoteJid`, `remoteJidAlt`, `participant`, `participantAlt`) e seleciona o **PRIMEIRO** que contiver o sufixo `@s.whatsapp.net` (indicador de número de telefone real).
+*   **Benefício:** Garante unicidade de conversa independente se o cliente enviou do PC ou Celular.
+
 ---
 
 ## 4. Estrutura de Banco de Dados (Supabase)

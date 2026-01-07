@@ -345,10 +345,10 @@ async function processMessage(msg) {
         return;
     }
 
-    // Ignorar LIDs
+    // Ignorar LIDs (IDs internos do WhatsApp que causam duplicidade de conta com número errado)
     if (msg.key.remoteJid.includes('@lid')) {
-        logDebug(`-> Ignorando LID: ${msg.key.remoteJid}`);
-        // return; // REMOVIDO TEMPORARIAMENTE
+        logDebug(`-> LID detectado: ${msg.key.remoteJid} - Tentando processar...`);
+        // return; 
     }
 
     // Helper to unwrap message (handle ephemeral, viewOnce, etc)
@@ -420,7 +420,46 @@ async function processMessage(msg) {
         return;
     }
 
-    const senderNumber = msg.key.remoteJid.replace(/\D/g, ''); // Apenas números
+    // Identificação Inteligente do Remetente (Smart Resolution)
+    // O objetivo é encontrar o JID que representa o NÚMERO DE TELEFONE (sufixo @s.whatsapp.net).
+    // Dependendo do modo (LID vs PN) e do dispositivo (Mobile vs Desktop), o número real pode estar em lugares diferentes.
+    
+    const candidates = [
+        msg.key.remoteJid,
+        msg.key.remoteJidAlt,
+        msg.key.participant,
+        msg.key.participantAlt
+    ];
+
+    // Busca o primeiro candidato que seja um JID de usuário padrão (@s.whatsapp.net)
+    // Ignora LIDs (@lid) e Broadcasts (@g.us) se houver opção melhor.
+    let targetJid = candidates.find(jid => jid && jid.includes('@s.whatsapp.net'));
+
+    // Se não achar nenhum padrão, usa o remoteJid normal (caso de grupos ou broadcast sem alt)
+    if (!targetJid) {
+        targetJid = msg.key.remoteJid;
+    }
+
+    let senderNumber = targetJid.replace(/\D/g, ''); 
+    
+    // Fallback de segurança (Store Lookup) - Só roda se o resultado final ainda parecer um LID
+    if (senderNumber.length > 14) {
+        console.log(`Ainda parece um LID (${senderNumber}). Tentando Store...`);
+        try {
+            const lidMatch = Object.values(store.contacts).find(c => 
+                c.lid && c.lid.includes(senderNumber)
+            );
+            
+            if (lidMatch && lidMatch.id) {
+                 const realPhone = lidMatch.id.replace(/\D/g, '');
+                 console.log(`-> Store Salvou! Convertido p/ ${realPhone}`);
+                 senderNumber = realPhone;
+            }
+        } catch (err) {
+            console.error('Erro Store:', err);
+        }
+    }
+
     const isFromMe = msg.key.fromMe;
     
     // Nome do remetente (tenta pegar do pushName)
@@ -428,7 +467,9 @@ async function processMessage(msg) {
 
     console.log('----------------------------------------');
     console.log('MENSAGEM RECEBIDA (BAILEYS):', messageType, mediaUrl ? '(Com Mídia)' : '');
-    console.log('DE:', senderName, `(${senderNumber})`);
+    console.log('CANDIDATOS JID:', candidates.filter(c => c).join(', '));
+    console.log('JID ESCOLHIDO:', targetJid);
+    console.log('SENDER FINAL:', senderName, `(${senderNumber})`);
     console.log('MINHA?:', isFromMe);
 
     try {
@@ -443,46 +484,76 @@ async function processMessage(msg) {
 
         let patient_id = null;
 
-        // Helper para buscar paciente com variações de telefone (Brasil)
-        // Checa: Exato, Sem 55, Com/Sem 9º dígito
+        // Helper para normalizar telefone (BRASIL)
+        // O usuário informou que o padrão é sem o 9 (12 dígitos totais: 55 + DD + 8 digitos).
+        // Se vier com 13 (9 dígitos), removemos o 9 para padronizar e evitar duplicatas.
+        const normalizePhone = (rawPhone) => {
+             let phone = rawPhone.replace(/\D/g, '');
+             
+             // Regra Brasil (55)
+             if (phone.startsWith('55')) {
+                 // DDI (2) + DDD (2) + 9 + 8 digitos = 13 digitos
+                 if (phone.length === 13) {
+                     // Remove o nono dígito (índice 4, pois começa em 0: 5,5,D,D,9...)
+                     return phone.substring(0, 4) + phone.substring(5);
+                 }
+             }
+             return phone;
+        };
+
         const findPatientByPhone = async (rawPhone) => {
-            const variations = new Set([rawPhone]);
-            
-            // 1. Sem 55 (se tiver)
-            if (rawPhone.startsWith('55') && rawPhone.length >= 12) {
-                variations.add(rawPhone.substring(2));
+            const normalized = normalizePhone(rawPhone);
+            const variations = new Set([normalized, rawPhone]);
+
+            // Se for BR, tenta buscar TAMBÉM com o 9 (caso tenha sido salvo errado antes) para garantir merge
+            if (normalized.startsWith('55') && normalized.length === 12) {
+                 const with9 = normalized.substring(0, 4) + '9' + normalized.substring(4);
+                 variations.add(with9);
             }
 
-            // 2. Tratar 9º dígito (para números com DDI 55)
-            // Se tem 12 dígitos (55 + DD + 8xxxxxxx), tenta versão com 9 (55 + DD + 98xxxxxxx)
-            if (rawPhone.startsWith('55') && rawPhone.length === 12) {
-                const with9 = rawPhone.substring(0, 4) + '9' + rawPhone.substring(4);
-                variations.add(with9);
-            }
-            // Se tem 13 dígitos (55 + DD + 98xxxxxxx), tenta versão sem 9 (55 + DD + 8xxxxxxx)
-            if (rawPhone.startsWith('55') && rawPhone.length === 13) {
-                const without9 = rawPhone.substring(0, 4) + rawPhone.substring(5);
-                variations.add(without9);
-            }
-
-            // Converter para array para consulta OR
             const phoneOptions = Array.from(variations);
-            console.log(`Buscando paciente com variações: ${phoneOptions.join(', ')}`);
+            console.log(`Buscando paciente (Normalizado: ${normalized}) variações: ${phoneOptions.join(', ')}`);
 
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('patients')
                 .select('id, avatar_url, phone')
                 .in('phone', phoneOptions)
-                // Ordenar para priorizar match exato se possível (embora .in não garanta ordem, pegamos o primeiro)
                 .maybeSingle();
 
             return data;
         };
+        
+        // Padroniza o numero do remetente ANTES de tudo
+        const normalizedSenderNumber = normalizePhone(senderNumber);
 
-        // 1. Buscar ou Criar Paciente (se não for eu)
         if (!isFromMe) {
             let patient = await findPatientByPhone(senderNumber);
 
+            // Fallback: Se não achou pelo número e é um ID estranho (LID) e temos nome:
+            if (!patient && senderName && senderName !== senderNumber) {
+                 console.log(`Paciente não achado por fone. Tentando match por nome (insensível): "${senderName}"`);
+                 
+                 // DEBUG: Logar estrutura completa para achar o número real se possível
+                 console.log('--- MSG STRUCTURE DEBUG ---');
+                 console.dir(msg, { depth: null });
+                 console.log('---------------------------');
+
+                 const { data: nameMatch } = await supabase
+                     .from('patients')
+                     .select('id, avatar_url, phone')
+                     .ilike('name', senderName) // Case insensitive
+                     .order('created_at', { ascending: false }) // Pega o mais recente
+                     .limit(1)
+                     .maybeSingle();
+                 
+                 if (nameMatch) {
+                     console.log(`Match de paciente por NOME encontrado! Associando LID ${senderNumber} ao paciente ${nameMatch.phone}`);
+                     patient = nameMatch;
+                 } else {
+                     console.log(`Nenhum paciente encontrado com o nome "${senderName}"`);
+                 }
+            }
+            
             if (!patient) {
                 console.log('Paciente (Sender) não encontrado, criando...', senderName);
                 
@@ -496,7 +567,7 @@ async function processMessage(msg) {
                     .from('patients')
                     .insert([{
                         name: senderName,
-                        phone: senderNumber, // Salva como veio
+                        phone: normalizedSenderNumber, // SALVA NORMALIZADO (sem 9 se for BR)
                         clinic_id: clinic_id,
                         channel: 'whatsapp',
                         lead_status: 'new',
@@ -602,13 +673,18 @@ async function processMessage(msg) {
             conversation = newConv;
         } else {
             // Atualizar conversa
+            // Atualizar conversa com preview
             await supabase
                 .from('conversations')
                 .update({
                     last_message_at: new Date().toISOString(),
-                    unread_count: isFromMe ? conversation.unread_count : (conversation.unread_count || 0) + 1
+                    unread_count: isFromMe ? conversation.unread_count : (conversation.unread_count || 0) + 1,
+                    last_message_content: messageContent, // Coluna nova para preview
+                    last_message_type: messageType // Coluna nova para tipo (text, audio, image)
                 })
-                .eq('id', conversation.id);
+                .eq('id', conversation.id)
+                .select(); // Select para retornar o erro se a coluna não existir catch abaixo pegará
+                
         }
 
         // 3. OTIMIZAÇÃO PERFORMANCE (OPTIMISTIC INSERT)
