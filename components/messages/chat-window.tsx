@@ -8,9 +8,6 @@ import {
     PaperPlaneRight,
     Paperclip,
     Smiley,
-    DotsThreeVertical,
-    Trash,
-    UserMinus,
     SidebarSimple,
     List
 } from "@phosphor-icons/react";
@@ -21,13 +18,6 @@ import { cn } from "@/lib/utils";
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
 import { createClient } from "@/lib/supabase/client";
 import { AudioPlayer } from "./audio-player";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 interface ChatWindowProps {
@@ -64,43 +54,7 @@ export function ChatWindow({ conversation, onToggleSidebar, isSidebarOpen = true
         scrollToBottom();
     }, [messages]);
 
-    const handleDeleteConversation = async () => {
-        if (!conversation || !confirm("Tem certeza que deseja apagar esta conversa? O histórico será perdido.")) return;
 
-        const supabase = createClient();
-        try {
-            const { error } = await supabase
-                .from('conversations')
-                .delete()
-                .eq('id', conversation.id);
-
-            if (error) throw error;
-            toast.success("Conversa apagada com sucesso");
-            window.location.reload();
-        } catch (error) {
-            console.error(error);
-            toast.error("Erro ao apagar conversa");
-        }
-    };
-
-    const handleDeleteLead = async () => {
-        if (!conversation?.patient_id || !confirm("Tem certeza que deseja apagar este contato/lead? Tudo será perdido.")) return;
-
-        const supabase = createClient();
-        try {
-            const { error } = await supabase
-                .from('patients')
-                .delete()
-                .eq('id', conversation.patient_id);
-
-            if (error) throw error;
-            toast.success("Contato apagado com sucesso");
-            window.location.reload();
-        } catch (error) {
-            console.error(error);
-            toast.error("Erro ao apagar contato");
-        }
-    };
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !conversation || !conversation.patient?.phone) {
@@ -176,24 +130,6 @@ export function ChatWindow({ conversation, onToggleSidebar, isSidebarOpen = true
                                 <SidebarSimple className="w-5 h-5" weight={isSidebarOpen ? "fill" : "regular"} />
                             </Button>
                         )}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-gray-600 hover:text-blue-600">
-                                    <DotsThreeVertical className="w-5 h-5" weight="bold" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={handleDeleteConversation} className="text-red-600 focus:text-red-600 gap-2 cursor-pointer">
-                                    <Trash className="h-4 w-4" weight="duotone" />
-                                    Apagar Conversa
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDeleteLead} className="text-red-600 focus:text-red-600 gap-2 cursor-pointer">
-                                    <UserMinus className="h-4 w-4" weight="duotone" />
-                                    Apagar Lead/Contato
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
                     </div>
                 </div>
             </div>

@@ -39,12 +39,13 @@ import { toast } from "sonner";
 
 interface ConversationListProps {
     selectedId?: string;
-    onSelectConversation: (conversation: Conversation) => void;
+    onSelectConversation: (conversation: Conversation | null) => void;
+    selectedConversation?: Conversation | null;
 }
 
 // ... (mockConversations removed for brevity as it was unused anyway since we use real hooks)
 
-export function ConversationList({ selectedId, onSelectConversation }: ConversationListProps) {
+export function ConversationList({ selectedId, onSelectConversation, selectedConversation }: ConversationListProps) {
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<ChannelType | "all">("all");
     const [showGroups, setShowGroups] = useState(false);
@@ -91,6 +92,12 @@ export function ConversationList({ selectedId, onSelectConversation }: Conversat
         e.stopPropagation(); // Prevent opening the chat
         if (!confirm("Tem certeza que deseja apagar esta conversa? O histórico será perdido.")) return;
 
+        // Se a conversa apagada é a que está aberta, fechar o chat IMEDIATAMENTE (UI Optimistic)
+        if (selectedConversation && String(selectedConversation.id) === String(conversationId)) {
+            console.log("Fechando chat IMEDIATAMENTE...");
+            onSelectConversation(null);
+        }
+
         try {
             const { error } = await supabase
                 .from('conversations')
@@ -98,6 +105,7 @@ export function ConversationList({ selectedId, onSelectConversation }: Conversat
                 .eq('id', conversationId);
 
             if (error) throw error;
+
             toast.success("Conversa apagada com sucesso");
             refresh();
         } catch (error) {
