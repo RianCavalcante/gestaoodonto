@@ -77,13 +77,17 @@ export function useRealtimeConversations() {
         // @ts-ignore
         const socket = io(serverUrl);
 
+        // DEBUG: Avisar onde está tentando conectar
+        toast.info(`🔌 Tentando conectar Socket em: ${serverUrl}`);
+
         socket.on("connect", () => {
             console.log("✅ ConversationList: Conectado ao Socket.IO");
+            toast.success("✅ Socket Conectado!");
         });
 
         socket.on("connect_error", (error) => {
             console.error("❌ ConversationList: Erro ao conectar Socket.IO:", error.message);
-            toast.error(`Socket Error: ${error.message}`);
+            toast.error(`❌ Socket Error: ${error.message}`);
         });
 
         socket.on("new_message", (message: any) => {
