@@ -15,7 +15,7 @@ import {
     List
 } from "@phosphor-icons/react";
 import { ChannelBadge } from "./channel-badge";
-import { formatRelativeTime, getInitials } from "@/lib/utils";
+import { formatMessageDate, getInitials } from "@/lib/utils";
 import type { Conversation } from "@/types";
 import { cn } from "@/lib/utils";
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
@@ -386,7 +386,7 @@ export function ChatWindow({ conversation, onToggleSidebar, isSidebarOpen = true
                                             isFromPatient ? "text-gray-500" : "text-blue-100"
                                         )}
                                     >
-                                        {formatRelativeTime(message.created_at)}
+                                        {formatMessageDate(message.created_at)}
                                     </p>
                                 </div>
                             </div>

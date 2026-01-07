@@ -134,3 +134,32 @@ export function isValidPhone(phone: string): boolean {
   const cleaned = phone.replace(/\D/g, "");
   return cleaned.length === 10 || cleaned.length === 11;
 }
+
+/**
+ * Format message date for conversation list (WhatsApp-style)
+ * - Today: HH:mm (ex: "14:32")
+ * - Yesterday: "Ontem"
+ * - Older: dd/MM/yyyy (ex: "25/12/2024")
+ */
+export function formatMessageDate(date: string | Date): string {
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  const now = new Date();
+  
+  // Reset hours to compare only dates
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const messageDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+  
+  if (messageDate.getTime() === today.getTime()) {
+    // Today: show time only (HH:mm)
+    return format(dateObj, "HH:mm");
+  } else if (messageDate.getTime() === yesterday.getTime()) {
+    // Yesterday
+    return "Ontem";
+  } else {
+    // Older: show date (dd/MM/yyyy)
+    return format(dateObj, "dd/MM/yyyy");
+  }
+}

@@ -16,7 +16,7 @@ import {
     DotsThreeVertical
 } from "@phosphor-icons/react";
 import { ChannelBadge } from "./channel-badge";
-import { formatRelativeTime, getInitials } from "@/lib/utils";
+import { formatMessageDate, getInitials } from "@/lib/utils";
 import type { Conversation, ChannelType } from "@/types";
 import { useRealtimeConversations } from "@/hooks/use-realtime-conversations";
 import {
@@ -281,7 +281,7 @@ export function ConversationList({ selectedId, onSelectConversation }: Conversat
                                             </h3>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-xs text-gray-500 flex-shrink-0">
-                                                    {formatRelativeTime(conversation.last_message_at)}
+                                                    {formatMessageDate(conversation.last_message_at)}
                                                 </span>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
