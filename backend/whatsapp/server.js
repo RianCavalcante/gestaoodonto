@@ -148,15 +148,33 @@ async function startWhatsApp() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Conexão fechada devido a ', lastDisconnect.error, ', reconectar ', shouldReconnect);
+            const statusCode = (lastDisconnect.error)?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+            console.log('Conexão fechada. Status:', statusCode, 'Erro:', lastDisconnect.error);
             
-            if (lastDisconnect.error?.output?.statusCode === DisconnectReason.loggedOut) {
-                console.log('Desconectado pelo celular ou logout manual');
+            // Auto-Recovery para Sessão Inválida ou 401
+            if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+                console.log('Sessão inválida/desconectada no celular. Iniciando Auto-Recovery...');
+                
                 connectionStatus = 'disconnected';
-                io.emit('whatsapp_status', 'disconnected');
-                // Limpar dados locais se quiser... mas Baileys gerencia 'auth_info_baileys'
                 qrCodeData = null;
+                io.emit('whatsapp_status', 'disconnected');
+                
+                // Apagar pasta de sessão corrompida/antiga
+                try {
+                    const sessionPath = path.resolve(__dirname, 'auth_info_baileys');
+                    if (fs.existsSync(sessionPath)) {
+                        fs.rmSync(sessionPath, { recursive: true, force: true });
+                        console.log('Pasta de sessão (auth_info_baileys) apagada com sucesso.');
+                    }
+                } catch (err) {
+                    console.error('Erro ao apagar pasta de sessão:', err);
+                }
+
+                // Reiniciar imediatamente para gerar novo QR Code
+                console.log('Reiniciando serviço para gerar novo QR Code...');
+                startWhatsApp();
+                
             } else if (shouldReconnect) {
                 connectionStatus = 'reconnecting';
                 startWhatsApp();
