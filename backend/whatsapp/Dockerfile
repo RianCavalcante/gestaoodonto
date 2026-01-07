@@ -1,4 +1,5 @@
-FROM node:18-alpine
+FROM node:20-alpine
+
 
 # Definir ambiente como produção para economizar memória
 ENV NODE_ENV=production
