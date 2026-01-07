@@ -21,10 +21,10 @@ export default function MessagesPage() {
                 <ConversationList
                     selectedId={selectedConversation?.id}
                     onSelectConversation={setSelectedConversation}
+                    selectedConversation={selectedConversation}
                 />
             </div>
 
-            {/* Janela de Chat */}
             <div className="flex-1 flex flex-col min-w-0">
                 <ChatWindow
                     conversation={selectedConversation}

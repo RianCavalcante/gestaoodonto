@@ -78,16 +78,16 @@ export function useRealtimeConversations() {
         const socket = io(serverUrl);
 
         // DEBUG: Avisar onde está tentando conectar
-        toast.info(`🔌 Tentando conectar Socket em: ${serverUrl}`);
+        // toast.info(`🔌 Tentando conectar Socket em: ${serverUrl}`);
 
         socket.on("connect", () => {
             console.log("✅ ConversationList: Conectado ao Socket.IO");
-            toast.success("✅ Socket Conectado!");
+            // toast.success("✅ Socket Conectado!"); // Removido para produção
         });
 
         socket.on("connect_error", (error) => {
             console.error("❌ ConversationList: Erro ao conectar Socket.IO:", error.message);
-            toast.error(`❌ Socket Error: ${error.message}`);
+            // toast.error(`❌ Socket Error: ${error.message}`); // Removido para produção
         });
 
         socket.on("new_message", (message: any) => {
@@ -95,7 +95,7 @@ export function useRealtimeConversations() {
             console.log("   payload:", message);
             
             // DEBUG VISUAL (REMOVER EM PRODUÇÃO DEPOIS)
-            toast.info(`Socket: Msg de ${message.sender_type || '?'} em ${message.conversation_id}`);
+            // toast.info(`Socket: Msg de ${message.sender_type || '?'} em ${message.conversation_id}`);
 
             // INSTANT UPDATE: Atualiza a prévia direto no estado, sem query!
             setConversations(prev => {
