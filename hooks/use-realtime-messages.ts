@@ -43,15 +43,22 @@ export function useRealtimeMessages(conversationId: string | null) {
   useEffect(() => {
     if (!conversationId) return;
 
-    // Conectar ao Socket.IO também (para garantir instantaneidade se o Supabase Realtime falhar)
     const serverUrl = process.env.NEXT_PUBLIC_WHATSAPP_SERVER_URL || "http://localhost:3001";
     // @ts-ignore
     const socket = io(serverUrl);
 
+    socket.on("connect", () => {
+        console.log("✅ ChatWindow: Conectado ao Socket.IO");
+    });
+
+    socket.on("connect_error", (error) => {
+        console.error("❌ ChatWindow: Erro ao conectar Socket.IO:", error.message);
+    });
+
     socket.on("new_message", (message: any) => {
         // Verifica se a mensagem pertence a esta conversa
         if (message.conversation_id === conversationId) {
-            console.log("⚡ Nova mensagem via Socket.IO:", message);
+            console.log("⚡ ChatWindow: Nova mensagem via Socket.IO:", message);
             // Deduplicar: não adicionar se já existir (pelo ID ou optimistic UUID)
             setMessages((current) => {
                 if (current.some(m => m.id === message.id)) return current;
@@ -61,6 +68,7 @@ export function useRealtimeMessages(conversationId: string | null) {
     });
 
     return () => {
+        console.log("🔌 ChatWindow: Desconectando Socket.IO");
         socket.disconnect();
     };
   }, [conversationId]);

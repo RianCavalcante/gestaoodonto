@@ -77,18 +77,58 @@ export function useRealtimeConversations() {
         const socket = io(serverUrl);
 
         socket.on("connect", () => {
-            console.log("ConversationList: Conectado ao Socket.IO");
+            console.log("✅ ConversationList: Conectado ao Socket.IO");
+        });
+
+        socket.on("connect_error", (error) => {
+            console.error("❌ ConversationList: Erro ao conectar Socket.IO:", error.message);
         });
 
         socket.on("new_message", (message: any) => {
-            console.log("ConversationList: Nova mensagem via Socket.IO -> Atualizando lista...");
-            fetchConversations();
+            console.log("⚡ ConversationList: Nova mensagem via Socket.IO");
+            console.log("   conversation_id:", message.conversation_id);
+            console.log("   content:", message.content?.substring(0, 50));
+            
+            // INSTANT UPDATE: Atualiza a prévia direto no estado, sem query!
+            setConversations(prev => {
+                const updated = prev.map(c => {
+                    if (c.id !== message.conversation_id) return c;
+                    
+                    // Extrai preview text (pode ser JSON de mídia ou texto simples)
+                    let previewText = "Nova mensagem";
+                    try {
+                        const parsed = JSON.parse(message.content);
+                        if (parsed.type === 'audio') previewText = "🎤 Áudio";
+                        else if (parsed.type === 'image') previewText = "📷 Imagem";
+                        else if (parsed.type === 'video') previewText = "🎥 Vídeo";
+                        else if (parsed.type === 'document') previewText = "📄 Documento";
+                        else if (parsed.text) previewText = parsed.text;
+                    } catch {
+                        // Se não for JSON, é texto simples
+                        previewText = message.content || "Nova mensagem";
+                    }
+                    
+                    return {
+                        ...c,
+                        last_message_content: previewText,
+                        last_message_at: message.created_at || new Date().toISOString(),
+                        last_message_type: message.type || 'text',
+                        unread_count: (c.unread_count || 0) + 1
+                    };
+                });
+                
+                // Reordena para colocar a conversa atualizada no topo
+                return updated.sort((a, b) => 
+                    new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+                );
+            });
         });
 
         return () => {
+            console.log("🔌 ConversationList: Desconectando Socket.IO");
             socket.disconnect();
         };
-    }, [fetchConversations]);
+    }, []); // Removido fetchConversations da dependência
 
     // Fetch conversations when clinicId is available
     useEffect(() => {
