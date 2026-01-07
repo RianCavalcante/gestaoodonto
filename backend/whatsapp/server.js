@@ -109,8 +109,19 @@ const io = new Server(httpServer, {
 
 // Configuração Supabase
 // Configuração Supabase
+console.log("🔍 Verificando variáveis de ambiente...");
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+    console.error("❌ ERRO CRÍTICO: Variáveis do Supabase não encontradas!");
+    console.error("Certifique-se de definir SUPABASE_URL e SUPABASE_KEY no painel.");
+    console.error(`URL definida: ${!!supabaseUrl}, Key definida: ${!!supabaseKey}`);
+    // Não vamos crashar propositalmente para permitir ver o log, mas o supabase vai falhar depois
+} else {
+    console.log("✅ Variáveis do Supabase detectadas.");
+}
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Estado Global
@@ -764,7 +775,12 @@ async function processMessage(msg) {
         console.log(`✅ Mensagem salva (Otimista): ${savedMessage.id} - ${mediaType}`);
         
         // Emitir evento Socket.IO para atualização em tempo real
+        console.log(`🚀 [SOCKET] DISPARANDO 'new_message' para o frontend...`);
+        console.log(`Payload: conversation_id=${savedMessage.conversation_id}, content=${savedMessage.content ? savedMessage.content.substring(0, 15) : 'midia'}`);
+        
         io.emit('new_message', savedMessage);
+        
+        console.log(`📡 [SOCKET] Evento emitido com sucesso.`);
         
     } catch (err) {
         console.error('Erro ao processar mensagem Baileys:', JSON.stringify(err, null, 2));
