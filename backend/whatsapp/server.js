@@ -110,9 +110,12 @@ const io = new Server(httpServer, {
 // Configuração Supabase
 // Configuração Supabase
 console.log("🔍 Verificando variáveis de ambiente...");
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+// Função para limpar aspas e espaços
+const cleanEnv = (val) => val ? val.trim().replace(/^["']|["']$/g, '') : val;
+
+const supabaseUrl = cleanEnv(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL);
 // IMPORTANTE: Priorizamos SUPABASE_KEY ou SERVICE_KEY para garantir service_role em produção
-const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseKey = cleanEnv(process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 if (!supabaseUrl || !supabaseKey) {
     console.error("❌ ERRO CRÍTICO: Variáveis do Supabase não encontradas!");
