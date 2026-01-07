@@ -44,3 +44,5 @@ baileys_auth_info/
 backend/whatsapp/debug_whatsapp.log
 auth_info_baileys/
 
+# Local Documentation (não fazer push)
+CHANGELOG.md
