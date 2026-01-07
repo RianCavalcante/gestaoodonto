@@ -2,6 +2,20 @@
 const path = require('path');
 const fs = require('fs');
 
+// --- PROTEÇÃO ANTI-CRASH (BLINDAGEM) ---
+process.on('uncaughtException', (err) => {
+    console.error('🔥 CRÍTICO: Exceção não tratada capturada! O servidor NÃO vai cair.');
+    console.error(err);
+    // NÃO sai do processo (process.exit), mantém rodando
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🔥 CRÍTICO: Rejeição de Promise não tratada capturada!');
+    console.error('Motivo:', reason);
+    // Mantém rodando
+});
+// ----------------------------------------
+
 // Se estiver rodando da raiz do projeto
 if (fs.existsSync('.env.local')) {
     require('dotenv').config({ path: '.env.local' });
@@ -176,8 +190,14 @@ async function startWhatsApp() {
                 startWhatsApp();
                 
             } else if (shouldReconnect) {
+                console.log('🔄 Conexão perdida (não foi logout). Reconectando em 2 segundos...');
                 connectionStatus = 'reconnecting';
-                startWhatsApp();
+                io.emit('whatsapp_status', 'reconnecting');
+                
+                // Delay inteligente para evitar loop infinito
+                setTimeout(() => {
+                    startWhatsApp();
+                }, 2000);
             }
         } else if (connection === 'open') {
             console.log('Conexão aberta/autenticada!');
@@ -193,13 +213,22 @@ async function startWhatsApp() {
 
     // Manipulador de Mensagens (UPSERT - chega nova ou update)
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
-        // Ao enviar mensagem própria, o tipo pode ser 'append'
-        // 'notify' é para mensagens que geram notificação (recebidas)
-        // Vamos processar todas para garantir que salvamos as enviadas também
-        console.log(`Upsert recebido. Tipo: ${type}, Qtd: ${messages.length}`);
+        console.log(`\n========================================`);
+        console.log(`🔔 UPSERT RECEBIDO - Tipo: ${type}, Qtd: ${messages.length}`);
+        console.log(`========================================\n`);
         
         for (const msg of messages) {
-            await processMessage(msg);
+            try {
+                console.log(`📩 Processando mensagem ID: ${msg.key.id}`);
+                await processMessage(msg);
+                console.log(`✅ Mensagem processada com sucesso\n`);
+            } catch (error) {
+                console.error(`\n❌❌❌ ERRO AO PROCESSAR MENSAGEM ❌❌❌`);
+                console.error(`Mensagem ID: ${msg.key.id}`);
+                console.error(`Erro:`, error);
+                console.error(`Stack:`, error.stack);
+                console.error(`========================================\n`);
+            }
         }
     });
 }
