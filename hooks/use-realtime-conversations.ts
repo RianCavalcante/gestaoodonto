@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { io } from "socket.io-client";
+import { toast } from "sonner";
 import type { Conversation } from "@/types";
 
 export function useRealtimeConversations() {
@@ -82,19 +83,24 @@ export function useRealtimeConversations() {
 
         socket.on("connect_error", (error) => {
             console.error("❌ ConversationList: Erro ao conectar Socket.IO:", error.message);
+            toast.error(`Socket Error: ${error.message}`);
         });
 
         socket.on("new_message", (message: any) => {
             console.log("⚡ ConversationList: Nova mensagem via Socket.IO");
-            console.log("   conversation_id:", message.conversation_id);
-            console.log("   content:", message.content?.substring(0, 50));
+            console.log("   payload:", message);
             
+            // DEBUG VISUAL (REMOVER EM PRODUÇÃO DEPOIS)
+            toast.info(`Socket: Msg de ${message.sender_type || '?'} em ${message.conversation_id}`);
+
             // INSTANT UPDATE: Atualiza a prévia direto no estado, sem query!
             setConversations(prev => {
                 const updated = prev.map(c => {
-                    if (c.id !== message.conversation_id) return c;
+                    // Usar '==' para garantir que string/number não quebre a lógica
+                    // eslint-disable-next-line eqeqeq
+                    if (c.id != message.conversation_id) return c;
                     
-                    // Extrai preview text (pode ser JSON de mídia ou texto simples)
+                    console.log("   ✅ Match encontrado! Atualizando conversa:", c.id);
                     let previewText = "Nova mensagem";
                     try {
                         const parsed = JSON.parse(message.content);
