@@ -1,26 +1,28 @@
-FROM node:18-bullseye-slim
+FROM node:18-alpine
 
-# Instalar ferramentas básicas de compilação (para dependências nativas como socket.io/bufferutil)
-RUN apt-get update && apt-get install -y \
+# Definir ambiente como produção para economizar memória
+ENV NODE_ENV=production
+
+# Instalar dependências necessárias para compilação (se necessário) e git
+RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    git
 
 WORKDIR /app
 
 # Copiar apenas package.json
 COPY package.json ./
 
-# Instalar dependências (forçando rebuild de nativos)
-RUN npm install
+# Instalar APENAS dependências de produção (mais leve, menos memória)
+RUN npm install --production --no-audit
 
-# Copiar o código fonte
+# Copiar o resto do código
 COPY . .
 
-# Expor a porta
+# Expor porta 3001
 EXPOSE 3001
 
-# Iniciar
+# Iniciar servidor
 CMD ["node", "server.js"]
