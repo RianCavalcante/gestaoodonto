@@ -121,6 +121,8 @@ if (!supabaseUrl || !supabaseKey) {
     // Não vamos crashar propositalmente para permitir ver o log, mas o supabase vai falhar depois
 } else {
     console.log("✅ Variáveis do Supabase detectadas.");
+    console.log(`🔑 Usando URL: ${supabaseUrl}`);
+    console.log(`🔑 Usando Key (Prefix): ${supabaseKey.substring(0, 15)}... (Comp: ${supabaseKey.length})`);
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
