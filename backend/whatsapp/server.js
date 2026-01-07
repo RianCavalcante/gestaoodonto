@@ -523,8 +523,13 @@ async function processMessage(msg) {
 
     try {
         // Buscar clinic_id real (pega o primeiro encontrado)
-        const { data: clinicData } = await supabase.from('clinics').select('id').limit(1).single();
+        const { data: clinicData, error: clinicError } = await supabase.from('clinics').select('id').limit(1).single();
         const clinic_id = clinicData?.id; 
+
+        if (clinicError) {
+             console.error("❌ Erro ao buscar clínica no Supabase:", clinicError);
+             console.error("Verifique se a SUPABASE_KEY é a service_role_key e se a URL está correta.");
+        }
 
         if (!clinic_id) {
             console.error('ERRO CRÍTICO: Nenhuma clínica encontrada no banco de dados.');
